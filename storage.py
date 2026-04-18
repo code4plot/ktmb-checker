@@ -8,7 +8,7 @@ BUCKET_NAME = os.environ["BUCKET_NAME"]
 
 CONFIG_BLOB = "checker/config.json"
 RUNTIME_STATUS_BLOB = "checker/runtime_status.json"
-ALERT_STATE_BLOB = "checker.alert_state.json"
+ALERT_STATE_BLOB = "checker/alert_state.json"
 LOCK_BLOB = "checker/lock.json"
 
 _client = storage.Client()
