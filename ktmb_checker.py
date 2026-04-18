@@ -32,6 +32,7 @@ from storage import (
     save_runtime_status,
     load_alert_state,
     save_alert_state,
+    save_config_dict,
 )
 from lock import try_acquire_lock, release_lock, new_lock_owner
 from telegram import send_telegram
@@ -76,6 +77,7 @@ def load_config() -> SearchConfig:
     raw = load_config_dict()
     return SearchConfig(
         enabled=raw.get("enabled", True),
+        force_run_once=raw.get("force_run_once", False),
         origin=raw["origin"],
         destination=raw["destination"],
         travel_date=raw["travel_date"],
@@ -90,6 +92,23 @@ def load_config() -> SearchConfig:
         min_seats=raw.get("min_seats", 1),
     )
 
+def should_run_and_maybe_consume_force(raw_config: dict) -> tuple[bool, bool]:
+    """
+    Returns:
+      (should_run, consumed_force_run_once)
+    """
+    enabled = bool(raw_config.get("enabled", True))
+    force_run_once = bool(raw_config.get("force_run_once", False))
+
+    if enabled:
+        return True, False
+
+    if force_run_once:
+        raw_config["force_run_once"] = False
+        save_config_dict(raw_config)
+        return True, True
+
+    return False, False
 
 def get_visible_calendar_month_year(page) -> tuple[int, int]:
     month_select = page.locator(SELECTORS["calendar_month_select"])
@@ -255,12 +274,12 @@ def main() -> int:
     save_runtime_status(runtime)
 
     try:
-        config = load_config()
+        raw_config = load_config_dict()
+        should_run, consumed_force = should_run_and_maybe_consume_force(raw_config)
 
-        if not config.enabled:
+        if not should_run:
             runtime = load_runtime_status()
             runtime.update({
-                "is_running": True,
                 "last_check_time": utc_now_iso(),
                 "last_check_success": True,
                 "last_check_message": "Checker is disabled.",
@@ -269,8 +288,28 @@ def main() -> int:
                 "last_error": "",
             })
             save_runtime_status(runtime)
-            print(json.dumps({"success": True, "available": False, "message": "Checker is disabled."}, indent=2))
-            return 0
+            return {
+                "success": True,
+                "available": False,
+                "message": "Checker is disabled."
+            }, 200
+        
+        config = load_config()
+
+        # if not config.enabled:
+        #     runtime = load_runtime_status()
+        #     runtime.update({
+        #         "is_running": True,
+        #         "last_check_time": utc_now_iso(),
+        #         "last_check_success": True,
+        #         "last_check_message": "Checker is disabled.",
+        #         "last_available": False,
+        #         "last_available_trains": [],
+        #         "last_error": "",
+        #     })
+        #     save_runtime_status(runtime)
+        #     print(json.dumps({"success": True, "available": False, "message": "Checker is disabled."}, indent=2))
+        #     return 0
 
         result = run_check(config)
         available_now = [t for t in result.matched_trains if t.available]

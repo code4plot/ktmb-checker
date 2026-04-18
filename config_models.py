@@ -5,6 +5,7 @@ from typing import Optional
 @dataclass
 class SearchConfig:
     enabled: bool
+    force_run_once: bool
     origin: str
     destination: str
     travel_date: str
