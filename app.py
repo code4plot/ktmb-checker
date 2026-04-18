@@ -9,14 +9,15 @@ def health():
 
 @app.post("/check")
 def run_check():
-
+    import ktmb_checker
     try:
-        result = subprocess.run(
-            ["python", "ktmb_checker.py"],
-            capture_output=True,
-            text=True,
-            timeout=180,
-        )
+        # result = subprocess.run(
+        #     ["python", "ktmb_checker.py"],
+        #     capture_output=True,
+        #     text=True,
+        #     timeout=180,
+        # )
+        result = ktmb_checker.main()
         return jsonify({"status": "success", "result": result}), 200
     except Exception as e:
         return jsonify({"status": "error", "error": str(e)}), 500
